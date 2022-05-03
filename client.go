@@ -3,6 +3,7 @@ package chancon
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
@@ -45,14 +46,26 @@ func (c *Client) Connect() error {
 		return m.Reply([]byte(""))
 	})
 
-	go c.connection.handle()
+	go func() {
+		c.connection.handle()
+		log.Error("Connection lost")
+		err = errors.New("")
+		for err != nil {
+			err = c.Connect()
+			time.Sleep(20 * time.Millisecond)
+		}
+	}()
 
 	err = c.introduce()
 	if err != nil {
 		return err
 	}
 	log.Info("Introduced myself")
-
+	c.observerManager.Handle(&Message{
+		Channel: Channel{
+			Name: "*connected",
+		},
+	})
 	return nil
 }
 
