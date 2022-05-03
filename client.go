@@ -16,9 +16,9 @@ type Client struct {
 	*observerManager
 	*tlsManager
 
-	host       string
-	port       int
-	connection *Connection
+	host string
+	port int
+	*connection
 }
 
 func NewClient(host string, port int) *Client {
@@ -48,7 +48,7 @@ func (c *Client) Connect() error {
 
 	go func() {
 		c.connection.handle()
-		log.Error("Connection lost")
+		log.Error("connection lost")
 		err = errors.New("")
 		for err != nil {
 			err = c.Connect()
@@ -61,7 +61,7 @@ func (c *Client) Connect() error {
 		return err
 	}
 	log.Info("Introduced myself")
-	c.observerManager.Handle(&Message{
+	c.observerManager.handle(&Message{
 		Channel: Channel{
 			Name: "*connected",
 		},
@@ -93,8 +93,4 @@ func (c *Client) introduce() error {
 	}, 5*time.Second)
 
 	return err
-}
-
-func (c *Client) Send(m *Message) error {
-	return c.connection.Send(m)
 }

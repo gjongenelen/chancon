@@ -17,11 +17,12 @@ func TestFullSuite(t *testing.T) {
 	}()
 
 	testMsg := []byte("test_msg")
+	testReplyMsg := []byte("reply_test_msg")
 
-	msgChan := make(chan []byte)
+	msgChan := make(chan []byte, 1)
 	server.On("test", func(m *Message) error {
 		msgChan <- m.Data
-		return nil
+		return m.Reply(append(testReplyMsg))
 	})
 
 	client := NewClient("localhost", 1234)
@@ -30,15 +31,18 @@ func TestFullSuite(t *testing.T) {
 		t.Fatal("got error on client-connect: " + err.Error())
 	}
 
-	err = client.Send(&Message{
+	reply, err := client.SendAndWaitForReplyWithTimeout(&Message{
 		Id: uuid.New(),
 		Channel: Channel{
 			Name: "test",
 		},
 		Data: append(testMsg),
-	})
+	}, 5*time.Second)
 	if err != nil {
 		t.Fatal("got error on client-send: " + err.Error())
+	}
+	if len(reply.Data) != len(testReplyMsg) {
+		t.Error("invalid reply-data received")
 	}
 
 	select {

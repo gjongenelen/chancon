@@ -14,8 +14,8 @@ import (
 
 var PingChannel = "*ping"
 
-func NewConnection(conn net.Conn, observerManager *observerManager) *Connection {
-	return &Connection{
+func NewConnection(conn net.Conn, observerManager *observerManager) *connection {
+	return &connection{
 		observerManager: observerManager,
 		Id:              uuid.New(),
 		State:           "initiated",
@@ -24,7 +24,7 @@ func NewConnection(conn net.Conn, observerManager *observerManager) *Connection 
 	}
 }
 
-type Connection struct {
+type connection struct {
 	*observerManager
 	Id       uuid.UUID
 	State    string
@@ -35,7 +35,7 @@ type Connection struct {
 	writeLock *sync.Mutex
 }
 
-func (c *Connection) Ping() (time.Duration, error) {
+func (c *connection) Ping() (time.Duration, error) {
 	pingMessage := &Message{
 		Id: uuid.New(),
 		Channel: Channel{
@@ -52,7 +52,7 @@ func (c *Connection) Ping() (time.Duration, error) {
 	return reply.Date.Sub(pingMessage.Date), nil
 }
 
-func (c *Connection) Close() error {
+func (c *connection) Close() error {
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
 
@@ -60,11 +60,11 @@ func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Connection) SendAndWaitForReply(message *Message) (*Message, error) {
+func (c *connection) SendAndWaitForReply(message *Message) (*Message, error) {
 	return c.SendAndWaitForReplyWithTimeout(message, 10*time.Second)
 }
 
-func (c *Connection) SendAndWaitForReplyWithTimeout(message *Message, timeout time.Duration) (*Message, error) {
+func (c *connection) SendAndWaitForReplyWithTimeout(message *Message, timeout time.Duration) (*Message, error) {
 	err := c.Send(message)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func (c *Connection) SendAndWaitForReplyWithTimeout(message *Message, timeout ti
 
 }
 
-func (c *Connection) Send(message *Message) error {
+func (c *connection) Send(message *Message) error {
 	payload, err := json.Marshal(message)
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func (c *Connection) Send(message *Message) error {
 	return nil
 }
 
-func (c *Connection) handle() {
+func (c *connection) handle() {
 	defer func() {
 		c.Close()
 	}()
@@ -135,7 +135,7 @@ func (c *Connection) handle() {
 		}
 		message.Channel.Connection = c
 
-		c.observerManager.Handle(message)
+		c.observerManager.handle(message)
 	}
 
 }

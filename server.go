@@ -15,7 +15,7 @@ type Server struct {
 	*observerManager
 	*tlsManager
 
-	connections     map[uuid.UUID]*Connection
+	connections     map[uuid.UUID]*connection
 	connectionsLock *sync.RWMutex
 
 	port int
@@ -25,24 +25,24 @@ func NewServer(port int) *Server {
 	return &Server{
 		observerManager: newObserverManager(),
 		tlsManager:      newTlsManager(),
-		connections:     map[uuid.UUID]*Connection{},
+		connections:     map[uuid.UUID]*connection{},
 		connectionsLock: &sync.RWMutex{},
 		port:            port,
 	}
 }
 
-func (s *Server) saveConnection(connection *Connection) {
+func (s *Server) saveConnection(connection *connection) {
 	s.connectionsLock.Lock()
 	s.connections[connection.Id] = connection
 	s.connectionsLock.Unlock()
 }
 
-func (s *Server) closeConnection(connection *Connection) {
+func (s *Server) closeConnection(connection *connection) {
 	_ = connection.Close()
 	s.deleteConnection(connection)
 }
 
-func (s *Server) deleteConnection(connection *Connection) {
+func (s *Server) deleteConnection(connection *connection) {
 	s.connectionsLock.Lock()
 	delete(s.connections, connection.Id)
 	s.connectionsLock.Unlock()
@@ -79,7 +79,7 @@ func (s *Server) acceptNewConnection(conn net.Conn) {
 		connection.State = "connected"
 		connection.Hostname = introduction.Name
 
-		log.Infof("Connection %s introducted as %s", connection.Id, connection.Hostname)
+		log.Infof("connection %s introducted as %s", connection.Id, connection.Hostname)
 
 		return m.Reply([]byte(""))
 	})

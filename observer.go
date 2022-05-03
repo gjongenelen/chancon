@@ -56,7 +56,7 @@ func (o *observerManager) On(channel string, callback ObserverCallback) func() {
 	}
 }
 
-func (o *observerManager) Handle(message *Message) {
+func (o *observerManager) handle(message *Message) {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
