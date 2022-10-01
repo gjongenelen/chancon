@@ -42,18 +42,20 @@ func (c *Client) Connect() error {
 	}
 
 	c.connection = NewConnection(conn, c.observerManager)
-	c.On(PingChannel, func(m *Message) error {
+	c.connection.lastPing = time.Now()
+	unsub := c.On(PingChannel, func(m *Message) error {
+		c.connection.lastPing = time.Now()
 		return m.Reply([]byte(""))
 	})
+	defer unsub()
 
+	closedChan := make(chan error)
 	go func() {
 		c.connection.handle()
 		log.Error("connection lost")
-		err = errors.New("")
-		for err != nil {
-			err = c.Connect()
-			time.Sleep(20 * time.Millisecond)
-		}
+
+		conn.Close()
+		closedChan <- errors.New("connection closed")
 	}()
 
 	err = c.introduce()
@@ -66,6 +68,7 @@ func (c *Client) Connect() error {
 			Name: "*connected",
 		},
 	})
+
 	return nil
 }
 

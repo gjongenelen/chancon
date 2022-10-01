@@ -79,7 +79,7 @@ func (s *Server) acceptNewConnection(conn net.Conn) {
 		connection.State = "connected"
 		connection.Hostname = introduction.Name
 
-		log.Infof("connection %s introducted as %s", connection.Id, connection.Hostname)
+		log.Infof("connection %s introduced as %s", connection.Id, connection.Hostname)
 
 		return m.Reply([]byte(""))
 	})
@@ -125,5 +125,6 @@ func (s *Server) Start() error {
 
 	log.Infof("Server is listening on port :%d", s.port)
 
-	return s.handleListener(listener)
+	go s.handleListener(listener)
+	return nil
 }

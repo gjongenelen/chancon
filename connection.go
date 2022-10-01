@@ -30,7 +30,8 @@ type connection struct {
 	State    string
 	Hostname string
 
-	conn net.Conn
+	conn     net.Conn
+	lastPing time.Time
 
 	writeLock *sync.Mutex
 }
@@ -131,6 +132,7 @@ func (c *connection) handle() {
 		err = json.Unmarshal(payload, message)
 		if err != nil {
 			log.Errorf("dropped message: %s", err.Error())
+			log.Debug(string(payload))
 			continue
 		}
 		message.Channel.Connection = c

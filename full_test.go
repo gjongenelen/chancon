@@ -9,12 +9,10 @@ import (
 func TestFullSuite(t *testing.T) {
 
 	server := NewServer(1234)
-	go func() {
-		err := server.Start()
-		if err != nil {
-			t.Error("got error on server-start: " + err.Error())
-		}
-	}()
+	err := server.Start()
+	if err != nil {
+		t.Error("got error on server-start: " + err.Error())
+	}
 
 	testMsg := []byte("test_msg")
 	testReplyMsg := []byte("reply_test_msg")
@@ -26,7 +24,7 @@ func TestFullSuite(t *testing.T) {
 	})
 
 	client := NewClient("localhost", 1234)
-	err := client.Connect()
+	err = client.Connect()
 	if err != nil {
 		t.Fatal("got error on client-connect: " + err.Error())
 	}
@@ -44,7 +42,6 @@ func TestFullSuite(t *testing.T) {
 	if len(reply.Data) != len(testReplyMsg) {
 		t.Error("invalid reply-data received")
 	}
-
 	select {
 	case msg := <-msgChan:
 		if len(testMsg) != len(msg) {
