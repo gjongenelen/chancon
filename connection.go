@@ -16,7 +16,8 @@ var PingChannel = "*ping"
 
 func NewConnection(conn net.Conn, observerManager *observerManager) *connection {
 	return &connection{
-		observerManager: observerManager,
+		privateObserver: newObserverManager(),
+		publicObserver:  observerManager,
 		Id:              uuid.New(),
 		State:           "initiated",
 		conn:            conn,
@@ -25,7 +26,9 @@ func NewConnection(conn net.Conn, observerManager *observerManager) *connection 
 }
 
 type connection struct {
-	*observerManager
+	privateObserver *observerManager
+	publicObserver  *observerManager
+
 	Id       uuid.UUID
 	State    string
 	Hostname string
@@ -34,6 +37,16 @@ type connection struct {
 	lastPing time.Time
 
 	writeLock *sync.Mutex
+}
+
+func (c *connection) handleMessage(message *Message) {
+	c.privateObserver.handle(message)
+
+	c.publicObserver.handle(message)
+}
+
+func (c *connection) On(channel string, callback ObserverCallback) func() {
+	return c.privateObserver.On(channel, callback)
 }
 
 func (c *connection) Ping() (time.Duration, error) {
@@ -57,7 +70,6 @@ func (c *connection) Close() error {
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
 
-	c.State = "closed"
 	return c.conn.Close()
 }
 
@@ -113,11 +125,11 @@ func (c *connection) Send(message *Message) error {
 }
 
 func (c *connection) handle() {
+	reader := bufio.NewReader(c.conn)
+
 	defer func() {
 		c.Close()
 	}()
-
-	reader := bufio.NewReader(c.conn)
 
 	for {
 		payload, err := readReader(reader)
@@ -137,7 +149,7 @@ func (c *connection) handle() {
 		}
 		message.Channel.Connection = c
 
-		c.observerManager.handle(message)
+		c.handleMessage(message)
 	}
 
 }

@@ -31,8 +31,26 @@ func NewClient(host string, port int) *Client {
 }
 
 func (c *Client) Connect() error {
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.host, c.port), 5*time.Second)
+	for {
+		c.connect()
+
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func (c *Client) connect() error {
+	defer c.observerManager.handle(&Message{
+		Channel: Channel{
+			Name: "*disconnected",
+		},
+	})
+
+	log.Debug("Connecting")
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", c.host, c.port), 2*time.Second)
 	if err != nil {
+		if conn != nil {
+			conn.Close()
+		}
 		return err
 	}
 
@@ -43,23 +61,21 @@ func (c *Client) Connect() error {
 
 	c.connection = NewConnection(conn, c.observerManager)
 	c.connection.lastPing = time.Now()
-	unsub := c.On(PingChannel, func(m *Message) error {
+	unsub := c.publicObserver.On(PingChannel, func(m *Message) error {
 		c.connection.lastPing = time.Now()
 		return m.Reply([]byte(""))
 	})
 	defer unsub()
 
-	closedChan := make(chan error)
+	errChan := make(chan error)
 	go func() {
 		c.connection.handle()
-		log.Error("connection lost")
-
-		conn.Close()
-		closedChan <- errors.New("connection closed")
+		errChan <- errors.New("connection closed")
 	}()
 
 	err = c.introduce()
 	if err != nil {
+		c.Close()
 		return err
 	}
 	log.Info("Introduced myself")
@@ -69,7 +85,7 @@ func (c *Client) Connect() error {
 		},
 	})
 
-	return nil
+	return <-errChan
 }
 
 func (c *Client) introduce() error {
@@ -96,4 +112,8 @@ func (c *Client) introduce() error {
 	}, 5*time.Second)
 
 	return err
+}
+
+func (c *Client) On(channel string, callback ObserverCallback) func() {
+	return c.observerManager.On(channel, callback)
 }

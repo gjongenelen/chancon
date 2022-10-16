@@ -40,6 +40,7 @@ func (s *Server) saveConnection(connection *connection) {
 func (s *Server) closeConnection(connection *connection) {
 	_ = connection.Close()
 	s.deleteConnection(connection)
+	connection = nil
 }
 
 func (s *Server) deleteConnection(connection *connection) {
@@ -56,6 +57,9 @@ func (s *Server) Broadcast(m *Message) {
 		connection.Send(m)
 	}
 }
+func (s *Server) On(channel string, callback ObserverCallback) func() {
+	return s.observerManager.On(channel, callback)
+}
 
 func (s *Server) acceptNewConnection(conn net.Conn) {
 	connection := NewConnection(conn, s.observerManager)
@@ -64,7 +68,7 @@ func (s *Server) acceptNewConnection(conn net.Conn) {
 
 	connection.On(IntroductionChannel, func(m *Message) error {
 		if _, err := connection.Ping(); err != nil {
-			s.deleteConnection(connection)
+			s.closeConnection(connection)
 			return err
 		}
 
@@ -84,11 +88,9 @@ func (s *Server) acceptNewConnection(conn net.Conn) {
 		return m.Reply([]byte(""))
 	})
 
-	go func() {
-		connection.handle()
+	connection.handle()
 
-		s.closeConnection(connection)
-	}()
+	s.closeConnection(connection)
 }
 
 func (s *Server) handleListener(listener net.Listener) error {
@@ -99,7 +101,9 @@ func (s *Server) handleListener(listener net.Listener) error {
 			continue
 		}
 
-		go s.acceptNewConnection(conn)
+		go func(conn net.Conn) {
+			s.acceptNewConnection(conn)
+		}(conn)
 	}
 }
 
@@ -125,6 +129,6 @@ func (s *Server) Start() error {
 
 	log.Infof("Server is listening on port :%d", s.port)
 
-	go s.handleListener(listener)
+	s.handleListener(listener)
 	return nil
 }
