@@ -78,28 +78,31 @@ func (c *connection) SendAndWaitForReply(message *Message) (*Message, error) {
 }
 
 func (c *connection) SendAndWaitForReplyWithTimeout(message *Message, timeout time.Duration) (*Message, error) {
-	err := c.Send(message)
-	if err != nil {
-		return nil, err
-	}
-
-	reply := make(chan *Message)
+	reply := make(chan *Message, 1)
 	unsub := c.On(message.Channel.Name, func(m *Message) error {
 		if m.ReplyTo == message.Id {
-			reply <- m
+			select {
+			case reply <- m:
+			default:
+			}
 		}
 
 		return nil
 	})
 	defer unsub()
 
+	if err := c.Send(message); err != nil {
+		return nil, err
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case replyMessage := <-reply:
 		return replyMessage, nil
-	case <-time.After(timeout):
+	case <-timer.C:
 		return nil, ErrTimedOutWaitingForReply
 	}
-
 }
 
 func (c *connection) Send(message *Message) error {
