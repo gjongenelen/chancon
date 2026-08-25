@@ -50,11 +50,15 @@ func (s *Server) deleteConnection(connection *connection) {
 }
 
 func (s *Server) Broadcast(m *Message) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
+	s.connectionsLock.RLock()
+	connections := make([]*connection, 0, len(s.connections))
 	for _, connection := range s.connections {
-		connection.Send(m)
+		connections = append(connections, connection)
+	}
+	s.connectionsLock.RUnlock()
+
+	for _, connection := range connections {
+		_ = connection.Send(m)
 	}
 }
 func (s *Server) On(channel string, callback ObserverCallback) func() {

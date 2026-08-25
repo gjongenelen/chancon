@@ -114,7 +114,7 @@ func (c *connection) Send(message *Message) error {
 
 	count, err := c.conn.Write(payload)
 	if err != nil {
-		c.Close()
+		_ = c.conn.Close()
 		return err
 	}
 	if count != len(payload) {
